@@ -1,72 +1,49 @@
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
-import os
-from cryptography.hazmat.primitives import padding
+from Crypto.Cipher import DES
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad, unpad
 
-# Función para generar una clave aleatoria de longitud 'size' en bytes
-def generate_key(size):
-    return os.urandom(size)
+# Función para generar una clave aleatoria de 8 bytes para DES
+def generate_key():
+    return get_random_bytes(8)  # 8 bytes de clave
 
-# Cifrado simétrico del mensaje usando DEK (Data Encryption Key)
+# Cifrado simétrico del mensaje usando DES
 def encrypt_with_DEK(plain_text, DEK):
-    # Usamos el modo de cifrado AES en CBC
-    iv = os.urandom(16)  # Vector de inicialización aleatorio
-    cipher = Cipher(algorithms.AES(DEK), modes.CBC(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
+    cipher = DES.new(DEK, DES.MODE_CBC)  # Cifra en modo CBC
+    iv = cipher.iv  # Vector de inicialización (se utiliza automáticamente en DES)
     
-    # Aplicamos padding usando PKCS7
-    padder = padding.PKCS7(algorithms.AES.block_size).padder()
-    padded_data = padder.update(plain_text.encode()) + padder.finalize()
+    # Aplicamos padding (PKCS7) al mensaje
+    padded_data = pad(plain_text.encode(), DES.block_size)
     
-    cipher_text = encryptor.update(padded_data) + encryptor.finalize()
+    cipher_text = cipher.encrypt(padded_data)
     return iv + cipher_text  # Devolvemos IV + texto cifrado
 
 # Cifrado de DEK con KEK (Key Encryption Key)
 def encrypt_DEK_with_KEK(DEK, KEK):
-    # Usamos el modo GCM de AES para cifrar el DEK
-    iv = os.urandom(12)  # IV de 12 bytes para GCM
-    cipher = Cipher(algorithms.AES(KEK), modes.GCM(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
-    
-    # Ciframos el DEK
-    encrypted_DEK = encryptor.update(DEK) + encryptor.finalize()
-    
-    # Retornamos el IV, el texto cifrado y el tag de autenticación
-    return iv + encryptor.tag + encrypted_DEK
+    cipher = DES.new(KEK, DES.MODE_ECB)  # Cifra en modo ECB
+    encrypted_DEK = cipher.encrypt(pad(DEK, DES.block_size))  # Pad para que tenga longitud correcta
+    return encrypted_DEK
 
 # Descifrado de DEK con KEK
 def decrypt_DEK_with_KEK(encrypted_DEK, KEK):
-    iv = encrypted_DEK[:12]  # Extraemos el IV
-    tag = encrypted_DEK[12:28]  # Extraemos el tag (16 bytes)
-    cipher_text = encrypted_DEK[28:]  # Extraemos el texto cifrado
-
-    cipher = Cipher(algorithms.AES(KEK), modes.GCM(iv, tag), backend=default_backend())
-    decryptor = cipher.decryptor()
-    
-    DEK = decryptor.update(cipher_text) + decryptor.finalize()
-    return DEK
+    cipher = DES.new(KEK, DES.MODE_ECB)
+    decrypted_DEK = unpad(cipher.decrypt(encrypted_DEK), DES.block_size)
+    return decrypted_DEK
 
 # Descifrado del mensaje con DEK
 def decrypt_with_DEK(cipher_text, DEK):
-    iv = cipher_text[:16]  # Extraemos el IV
-    cipher_text = cipher_text[16:]  # Extraemos el texto cifrado
+    iv = cipher_text[:8]  # Extraemos el IV
+    cipher_text = cipher_text[8:]  # Extraemos el texto cifrado
     
-    cipher = Cipher(algorithms.AES(DEK), modes.CBC(iv), backend=default_backend())
-    decryptor = cipher.decryptor()
+    cipher = DES.new(DEK, DES.MODE_CBC, iv)  # Descifra en modo CBC
     
-    padded_plain_text = decryptor.update(cipher_text) + decryptor.finalize()
-    
-    # Eliminamos el padding usando PKCS7
-    unpadder = padding.PKCS7(algorithms.AES.block_size).unpadder()
-    plain_text = unpadder.update(padded_plain_text) + unpadder.finalize()
-    
-    return plain_text.decode()
+    padded_plain_text = unpad(cipher.decrypt(cipher_text), DES.block_size)
+    return padded_plain_text.decode()
 
 # Función principal
 def main():
-    # Generar claves DEK (32 bytes) y KEK (32 bytes)
-    DEK = generate_key(32)  # 256 bits
-    KEK = generate_key(32)  # 256 bits
+    # Generar claves DEK (8 bytes) y KEK (8 bytes)
+    DEK = generate_key()  # 8 bytes para DES
+    KEK = generate_key()  # 8 bytes para DES
 
     # Mensaje a cifrar
     plain_text = "Este es un mensaje secreto"
@@ -87,5 +64,3 @@ def main():
     print(f"Mensaje original: {plain_text}")
     print(f"Mensaje descifrado: {decrypted_message}")
 
-if __name__ == "__main__":
-    main()
