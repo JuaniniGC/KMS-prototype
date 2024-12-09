@@ -28,7 +28,7 @@ def encriptar():
         resultado_encriptacion.config(text=f"Partes generadas:\n{partes_mostradas}")
         
     except ValueError:
-        resultado_encriptacion.config(text="Por favor, ingresa un secreto válido.")
+        resultado_encriptacion.config(text="Por favor, ingresa valores válidos.")
 
 # Función para desencriptar el secreto
 def desencriptar():
@@ -94,5 +94,6 @@ boton_desencriptar.pack(pady=10)
 resultado_desencriptacion = tk.Label(pestana_desencriptacion, text="Resultado de la desencriptación aparecerá aquí.")
 resultado_desencriptacion.pack(pady=10)
 
-# Ejecutar la aplicación
-ventana.mainloop()
+
+if __name__ == "__main__":
+    ventana.mainloop()
